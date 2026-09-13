@@ -1,0 +1,45 @@
+name: omniplate_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0+3
+
+environment:
+  sdk: ^3.2.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_dotenv: ^6.0.1
+  flutter_native_splash: ^2.4.8
+  google_generative_ai: ^0.4.7
+  http: ^1.2.0
+  image_picker: ^1.0.7
+  provider: ^6.1.5+1
+  purchases_flutter: ^10.12.0
+  shared_preferences: ^2.2.3
+  simple_barcode_scanner: ^0.6.0
+  supabase_flutter: ^2.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/Icon.png"
+
+flutter_native_splash:
+  color: "#2B2D31"
+  image: "assets/splash_logo.png"
+  android_12:
+    color: "#2B2D31"
+    image: "assets/splash_logo.png"
