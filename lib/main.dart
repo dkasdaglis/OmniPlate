@@ -232,12 +232,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'http://localhost:3000',
+        redirectTo: 'io.supabase.omniplate://login-callback', // ΑΛΛΑΓΗ ΕΔΩ
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Sign-In Error: $e'), backgroundColor: Colors.redAccent));
-      }
+      // ...
     }
   }
 
