@@ -13,10 +13,13 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Αρχικοποίηση Supabase
+    // Φόρτωση του .env αρχείου
+    await dotenv.load(fileName: ".env");
+
+    // Αρχικοποίηση Supabase με κρυφά κλειδιά
     await Supabase.initialize(
-      url: 'https://ujlgmfmxllaqlpuzvosv.supabase.co', 
-      anonKey: 'sb_publishable_n74V1uxwtQnLHQ8hYvX4ag_of9ZoDHa', 
+      url: dotenv.env['SUPABASE_URL']!, 
+      anonKey: dotenv.env['SUPABASE_ANON_KEY']!, 
     );
 
     // Δημιουργία AppState και αρχικοποίηση RevenueCat
