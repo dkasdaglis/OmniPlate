@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/services.dart'; // Απαραίτητο για το Clipboard!
+import 'package:flutter/services.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_state.dart';
 import 'profile.dart'; 
@@ -21,7 +21,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     const cardColor = Color(0xFF1E1F22);
     const accentColor = Color(0xFFED6058);
 
-    // Συνδεόμαστε με το AppState
     final appState = context.watch<AppState>();
 
     return Scaffold(
@@ -35,12 +34,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: Column(
         children: [
-          // --- ΤΟ ΠΑΝΩ ΜΕΡΟΣ (ΣΚΡΟΛΑΡΕΙ) ---
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(20.0),
               children: [
-                // --- PROFILE SECTION ---
                 Row(
                   children: [
                     CircleAvatar(
@@ -61,7 +58,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 32),
                 
-                // --- ACCOUNT SETTINGS ---
                 const Text('ACCOUNT', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                 const SizedBox(height: 12),
                 _buildSettingsCard(
@@ -82,7 +78,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
                 
-                // --- DATA & PRIVACY ---
                 const Text('DATA & PRIVACY', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                 const SizedBox(height: 12),
                 _buildSettingsCard(
@@ -92,7 +87,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       final data = appState.exportData();
                       Clipboard.setData(ClipboardData(text: data));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Meal data copied to clipboard!'), backgroundColor: Color(0xFF4CAF50)),
+                        const SnackBar(
+                          content: Text('Data copied. Paste in notes to view/save.', style: TextStyle(color: Colors.white)), 
+                          backgroundColor: Color(0xFF4CAF50),
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                     }),
                     _buildDivider(),
@@ -100,7 +99,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       await appState.clearLocalCache();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Local cache cleared successfully.'), backgroundColor: Colors.white38),
+                          const SnackBar(
+                            content: Text('App cache cleared successfully!', style: TextStyle(color: Colors.white)), 
+                            backgroundColor: Color(0xFF4CAF50),
+                            behavior: SnackBarBehavior.floating,
+                          ),
                         );
                       }
                     }),
@@ -110,7 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           
-          // --- ΤΟ ΚΑΤΩ ΜΕΡΟΣ (ΚΟΛΛΗΜΕΝΟ ΣΤΟΝ ΠΑΤΟ) ---
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(

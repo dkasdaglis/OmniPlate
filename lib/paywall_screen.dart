@@ -63,7 +63,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
     });
 
     try {
-      // Καλεί δυναμικά τη μέθοδο αγοράς του RevenueCat
       final dynamic res = await (Purchases as dynamic).purchasePackage(_selectedPackage!);
       final CustomerInfo customerInfo = (res is CustomerInfo) ? res : res.customerInfo;
 
@@ -77,7 +76,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const SuccessProScreen()));
       }
     } on PlatformException catch (e) {
-      // Αν ο χρήστης πάτησε ακύρωση (κωδικός 1 στο Play Store), δεν πετάμε error banner
       if (e.code != '1' && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Purchase failed: ${e.message ?? e.code}'), backgroundColor: Colors.redAccent),
@@ -185,11 +183,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // Annual Plan
                   GestureDetector(
                     onTap: () {
                       if (_yearlyPackage != null) {
-                        setState(() => _selectedPackage = _yearlyPackage);
+                        setState(() {
+                          _selectedPackage = _yearlyPackage;
+                        });
                       }
                     },
                     child: Container(
@@ -236,11 +235,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Monthly Plan
                   GestureDetector(
                     onTap: () {
                       if (_monthlyPackage != null) {
-                        setState(() => _selectedPackage = _monthlyPackage);
+                        setState(() {
+                          _selectedPackage = _monthlyPackage;
+                        });
                       }
                     },
                     child: Container(

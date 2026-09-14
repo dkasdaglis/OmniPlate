@@ -1,5 +1,6 @@
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_state.dart';
@@ -11,18 +12,16 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]); 
 
   try {
-    // Φόρτωση του .env αρχείου
     await dotenv.load(fileName: ".env");
 
-    // Αρχικοποίηση Supabase με κρυφά κλειδιά
     await Supabase.initialize(
       url: dotenv.env['SUPABASE_URL']!, 
       anonKey: dotenv.env['SUPABASE_ANON_KEY']!, 
     );
 
-    // Δημιουργία AppState και αρχικοποίηση RevenueCat
     final appState = AppState();
     await appState.initRevenueCat();
 
@@ -113,21 +112,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
     Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return; 
-
-      final uri = Uri.base;
-      if (uri.queryParameters.containsKey('code')) {
-        final code = uri.queryParameters['code']!;
-        try {
-          await Supabase.instance.client.auth.exchangeCodeForSession(code);
-        } catch (e) {
-          debugPrint('Σφάλμα κατά την ανταλλαγή κωδικού: $e');
-        }
-        
-        if (mounted) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const UpdatePasswordScreen()));
-        }
-        return; 
-      }
 
       final prefs = await SharedPreferences.getInstance();
       final session = Supabase.instance.client.auth.currentSession;
@@ -232,7 +216,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'io.supabase.omniplate://login-callback', // ΑΛΛΑΓΗ ΕΔΩ
+        redirectTo: 'io.supabase.omniplate://login-callback',
       );
     } catch (e) {
       // ...
