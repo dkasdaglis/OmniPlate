@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dashboard.dart';
-import 'main.dart'; // Για να πάρουμε το omniLogo()
+import 'main.dart'; 
+import 'sign_in.dart'; 
 
 class UpdatePasswordScreen extends StatefulWidget {
   const UpdatePasswordScreen({super.key});
@@ -24,44 +24,31 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
 
   Future<void> _updatePassword() async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Λέμε στο Supabase να αλλάξει τον κωδικό
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(password: _passwordController.text.trim()),
       );
 
+      // Αποσυνδέουμε τον χρήστη ώστε να αναγκαστεί να βάλει τον νέο κωδικό
+      await Supabase.instance.client.auth.signOut();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password updated successfully!'),
-            backgroundColor: Color(0xFF4CAF50),
-          )
+          const SnackBar(content: Text('Password updated! Please log in.'), backgroundColor: Color(0xFF4CAF50))
         );
-        // Τον στέλνουμε στο Dashboard αφού μπήκε επιτυχώς
-        Navigator.pushReplacement(
+        // Τον στέλνουμε στο Sign In και καθαρίζουμε το ιστορικό οθονών
+        Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => const SignInScreen()),
+          (route) => false,
         );
       }
     } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Something went wrong.'), backgroundColor: Colors.redAccent));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

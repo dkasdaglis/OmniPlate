@@ -1,14 +1,15 @@
+import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'app_state.dart';
 import 'onboarding.dart'; 
 import 'sign_in.dart';
 import 'dashboard.dart'; 
 import 'update_password.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,18 +33,7 @@ void main() async {
       ),
     );
   } catch (e) {
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text('ΣΦΑΛΜΑ: $e', style: const TextStyle(color: Colors.red, fontSize: 16)),
-            ),
-          ),
-        ),
-      ),
-    );
+    runApp(MaterialApp(home: Scaffold(body: Center(child: Text('ΣΦΑΛΜΑ: $e', style: const TextStyle(color: Colors.red))))));
   }
 }
 
@@ -94,44 +84,73 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  late final StreamSubscription<AuthState> _authSubscription;
+
   @override
   void initState() {
     super.initState();
     
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    // Ακούμε για επιστροφές από emails ή google
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;
+      final Session? session = data.session;
+
       if (event == AuthChangeEvent.passwordRecovery) {
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const UpdatePasswordScreen()),
-          );
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const UpdatePasswordScreen()));
         }
+      } else if (event == AuthChangeEvent.signedIn && session != null) {
+        _checkProfileAndRoute(session);
       }
     });
 
-    Future.delayed(const Duration(seconds: 3), () async {
+    // Αρχικός έλεγχος κατά το άνοιγμα
+    Future.delayed(const Duration(seconds: 2), () async {
       if (!mounted) return; 
-
-      final prefs = await SharedPreferences.getInstance();
       final session = Supabase.instance.client.auth.currentSession;
       
-      if (mounted) {
-        if (session != null && prefs.getBool('remember_me') == true) {
-          await context.read<AppState>().syncWithSupabase();
-          if (mounted) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
-          }
+      if (session != null) {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('remember_me') == true) {
+          await _checkProfileAndRoute(session);
         } else {
-          if (session != null) {
-            await Supabase.instance.client.auth.signOut();
-          }
-          if (mounted) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignUpScreen()));
-          }
+          await Supabase.instance.client.auth.signOut();
+          if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignUpScreen()));
         }
+      } else {
+        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignUpScreen()));
       }
     });
+  }
+
+  // Η καρδιά του Routing: Ελέγχει αν έχεις τελειώσει το Onboarding
+  Future<void> _checkProfileAndRoute(Session session) async {
+    try {
+      final profileData = await Supabase.instance.client
+          .from('users')
+          .select('age, weight')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      if (profileData == null || profileData['age'] == null || profileData['weight'] == null) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingScreen()));
+      } else {
+        await context.read<AppState>().syncWithSupabase();
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignUpScreen()));
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
   }
 
   @override
@@ -162,16 +181,49 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isPasswordHidden = true;
   bool _isLoading = false; 
   final _formKey = GlobalKey<FormState>();
-  
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  late final StreamSubscription<AuthState> _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // Πιάνει το verification link και το google login αν πατηθούν ενώ είμαστε εδώ
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn && data.session != null) {
+        _checkProfileAndRoute(data.session!);
+      }
+    });
+  }
+
+  Future<void> _checkProfileAndRoute(Session session) async {
+    final profileData = await Supabase.instance.client
+        .from('users').select('age, weight').eq('id', session.user.id).maybeSingle();
+
+    if (!mounted) return;
+
+    if (profileData == null || profileData['age'] == null || profileData['weight'] == null) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingScreen()));
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_me', true);
+      await context.read<AppState>().syncWithSupabase();
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return; 
 
-    setState(() {
-      _isLoading = true; 
-    });
+    setState(() => _isLoading = true);
 
     try {
       final AuthResponse res = await Supabase.instance.client.auth.signUp(
@@ -182,33 +234,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) {
         if (res.session == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Registration successful! Please check your email to verify your account.'),
-              backgroundColor: Color(0xFF4CAF50), 
-              duration: Duration(seconds: 6),
-            )
+            const SnackBar(content: Text('Registration successful! Please check your email.'), backgroundColor: Color(0xFF4CAF50))
           );
         } else {
-          Navigator.pushReplacement(
-            context, 
-            MaterialPageRoute(builder: (context) => const OnboardingScreen())
-          );
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingScreen()));
         }
       }
     } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Something went wrong. Please try again.'), backgroundColor: Colors.redAccent));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false; 
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -221,13 +256,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } catch (e) {
       // ...
     }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   @override
@@ -303,7 +331,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Please enter a password';
                         if (value.length < 6) return 'Password must be at least 6 characters';
-                        if (!RegExp(r'^(?=.*[!@#\$&*~]).{6,}$').hasMatch(value)) return 'Must contain at least 1 special character (!@#\$&*)';
                         return null;
                       },
                     ),
@@ -322,17 +349,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     child: _isLoading 
                         ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('SIGN UP', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        : const Text('SIGN UP', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
-                ),
-                const SizedBox(height: 30),
-
-                Row(
-                  children: const [
-                    Expanded(child: Divider(color: Colors.white24, thickness: 1)),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Or', style: TextStyle(color: Colors.white54, fontSize: 14))),
-                    Expanded(child: Divider(color: Colors.white24, thickness: 1)),
-                  ],
                 ),
                 const SizedBox(height: 30),
 

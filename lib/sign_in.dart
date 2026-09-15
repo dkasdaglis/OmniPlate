@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,7 +6,8 @@ import 'package:provider/provider.dart';
 import 'app_state.dart';
 import 'dashboard.dart'; 
 import 'main.dart';
-import 'onboarding.dart'; // Απαραίτητο για να ξέρει πού να στείλει τον χρήστη
+import 'onboarding.dart';
+import 'update_password.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -19,12 +21,44 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _isLoading = false; 
   bool _rememberMe = true; 
   final _formKey = GlobalKey<FormState>();
-  
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  late final StreamSubscription<AuthState> _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // Πιάνει επιστροφές από Google Login ή Password Reset emails
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn && data.session != null) {
+        _checkProfileAndRoute(data.session!);
+      } else if (data.event == AuthChangeEvent.passwordRecovery) {
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const UpdatePasswordScreen()));
+        }
+      }
+    });
+  }
+
+  Future<void> _checkProfileAndRoute(Session session) async {
+    final profileData = await Supabase.instance.client
+        .from('users').select('age, weight').eq('id', session.user.id).maybeSingle();
+
+    if (!mounted) return;
+
+    if (profileData == null || profileData['age'] == null || profileData['weight'] == null) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingScreen()));
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_me', _rememberMe);
+      await context.read<AppState>().syncWithSupabase();
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
+    }
+  }
 
   @override
   void dispose() {
+    _authSubscription.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -32,87 +66,33 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final response = await Supabase.instance.client.auth.signInWithPassword(
+      await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
-      if (response.user != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('remember_me', _rememberMe);
-
-        if (mounted) {
-          await context.read<AppState>().syncWithSupabase();
-        }
-
-        // ΝΕΟΣ ΕΛΕΓΧΟΣ: Ρωτάμε αν υπάρχουν συγκεκριμένα δεδομένα (ηλικία, βάρος)
-        final profileData = await Supabase.instance.client
-            .from('users')
-            .select('age, weight')
-            .eq('id', response.user!.id)
-            .maybeSingle();
-
-        if (mounted) {
-          // Αν δεν βρει γραμμή, Ή αν η γραμμή υπάρχει αλλά το age/weight είναι null (άδεια)
-          if (profileData == null || profileData['age'] == null || profileData['weight'] == null) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const DashboardScreen()),
-            );
-          }
-        }
-      }
+      // Δεν χρειάζεται pushReplacement εδώ γιατί το κάνει αυτόματα το _authSubscription που βάλαμε πάνω!
     } on AuthException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message), backgroundColor: Colors.redAccent));
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Something went wrong. Please try again.'), backgroundColor: Colors.redAccent));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message), backgroundColor: Colors.redAccent));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
-    
     if (email.isEmpty || !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address first.'), backgroundColor: Colors.redAccent)
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter valid email first.'), backgroundColor: Colors.redAccent));
       return;
     }
 
     try {
       await Supabase.instance.client.auth.resetPasswordForEmail(email);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset link sent to your email!'), backgroundColor: Color(0xFF4CAF50))
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reset link sent!'), backgroundColor: Color(0xFF4CAF50)));
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${error.toString()}'), backgroundColor: Colors.redAccent)
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $error'), backgroundColor: Colors.redAccent));
     }
   }
 
@@ -120,7 +100,7 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'io.supabase.omniplate://login-callback', // ΑΛΛΑΓΗ ΕΔΩ
+        redirectTo: 'io.supabase.omniplate://login-callback',
       );
     } catch (e) {
       // ...
@@ -169,7 +149,6 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Please enter your email';
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) return 'Enter a valid email address';
                         return null;
                       },
                     ),
@@ -245,17 +224,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     child: _isLoading 
                         ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('SIGN IN', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        : const Text('SIGN IN', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
-                ),
-                const SizedBox(height: 30),
-
-                Row(
-                  children: const [
-                    Expanded(child: Divider(color: Colors.white24, thickness: 1)),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Or', style: TextStyle(color: Colors.white54, fontSize: 14))),
-                    Expanded(child: Divider(color: Colors.white24, thickness: 1)),
-                  ],
                 ),
                 const SizedBox(height: 30),
 
