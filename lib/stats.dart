@@ -18,20 +18,27 @@ class StatsScreen extends StatelessWidget {
     final appState = context.watch<AppState>();
     final goal = appState.dailyGoal;
     final consumed = appState.consumedCalories;
+    final weight = appState.weight;
     
     // Υπολογίζουμε το ποσοστό προόδου 
     double progress = goal > 0 ? consumed / goal : 0.0;
     if (progress > 1.0) progress = 1.0; 
 
-    final goalProtein = ((goal * 0.30) / 4).round();
-    final goalCarbs = ((goal * 0.40) / 4).round();
-    final goalFats = ((goal * 0.30) / 9).round();
+    // --- ΝΕΟΣ ΥΠΟΛΟΓΙΣΜΟΣ: Ίδιος με το Analyze και το Dashboard ---
+    final goalProtein = (weight * 2.2).round();
+    final goalFats = (weight * 1.0).round();
+    
+    final proteinKcal = goalProtein * 4;
+    final fatsKcal = goalFats * 9;
+    final remainingKcalForCarbs = goal - proteinKcal - fatsKcal;
+    
+    final goalCarbs = remainingKcalForCarbs > 0 ? (remainingKcalForCarbs / 4).round() : 0;
 
     final consumedProtein = appState.consumedProtein.round();
     final consumedCarbs = appState.consumedCarbs.round();
     final consumedFats = appState.consumedFats.round();
 
-    // --- ΝΕΟ: ΥΠΟΛΟΓΙΣΜΟΣ 7 ΗΜΕΡΩΝ ΓΙΑ ΤΟ ΓΡΑΦΗΜΑ ---
+    // ΥΠΟΛΟΓΙΣΜΟΣ 7 ΗΜΕΡΩΝ ΓΙΑ ΤΟ ΓΡΑΦΗΜΑ
     List<Map<String, dynamic>> weeklyData = [];
     int maxDailyKcal = goal > 0 ? goal : 2000; 
 
@@ -74,7 +81,7 @@ class StatsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- ΚΑΡΤΑ 1: ΣΥΝΟΛΙΚΗ ΠΡΟΟΔΟΣ ---
+            // ΚΑΡΤΑ 1: ΣΥΝΟΛΙΚΗ ΠΡΟΟΔΟΣ
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -123,7 +130,7 @@ class StatsScreen extends StatelessWidget {
             const Text('Macronutrients', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
 
-            // --- ΚΑΡΤΑ 2: ΜΑΚΡΟΘΡΕΠΤΙΚΑ ---
+            // ΚΑΡΤΑ 2: ΜΑΚΡΟΘΡΕΠΤΙΚΑ
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24)),
@@ -140,7 +147,7 @@ class StatsScreen extends StatelessWidget {
             
             const SizedBox(height: 40),
             
-            // --- ΚΑΡΤΑ 3: ΠΡΑΓΜΑΤΙΚΟ ΕΒΔΟΜΑΔΙΑΙΟ ΓΡΑΦΗΜΑ ---
+            // ΚΑΡΤΑ 3: ΠΡΑΓΜΑΤΙΚΟ ΕΒΔΟΜΑΔΙΑΙΟ ΓΡΑΦΗΜΑ
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24)),

@@ -226,22 +226,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final AuthResponse res = await Supabase.instance.client.auth.signUp(
+      await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
+      // ΝΕΟ: Αφού δεν υπάρχει πλέον email verification, 
+      // με το που πετύχει η εγγραφή, τον πετάμε καρφί στο Onboarding!
       if (mounted) {
-        if (res.session == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Registration successful! Please check your email.'), backgroundColor: Color(0xFF4CAF50))
-          );
-        } else {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingScreen()));
-        }
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (context) => const OnboardingScreen())
+        );
       }
     } on AuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent)
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

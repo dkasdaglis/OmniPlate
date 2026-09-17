@@ -32,12 +32,26 @@ class _PaywallScreenState extends State<PaywallScreen> {
     try {
       final offerings = await Purchases.getOfferings();
       if (offerings.current != null && offerings.current!.availablePackages.isNotEmpty) {
-        for (var package in offerings.current!.availablePackages) {
-          if (package.packageType == PackageType.annual || package.identifier.toLowerCase().contains('year') || package.identifier.toLowerCase().contains('annual')) {
+        final packages = offerings.current!.availablePackages;
+        
+        for (var package in packages) {
+          final id = package.identifier.toLowerCase();
+          if (package.packageType == PackageType.annual || id.contains('year') || id.contains('annual')) {
             _yearlyPackage = package;
-          } else if (package.packageType == PackageType.monthly || package.identifier.toLowerCase().contains('month')) {
+          } else if (package.packageType == PackageType.monthly || id.contains('month')) {
             _monthlyPackage = package;
           }
+        }
+        
+        // --- ΝΕΟ: ΑΛΕΞΙΣΦΑΙΡΟ FALLBACK ---
+        // Αν τα ονόματα δεν ταίριαζαν με τίποτα, παίρνουμε απλά τα πρώτα διαθέσιμα πακέτα!
+        if (_yearlyPackage == null && packages.isNotEmpty) {
+          _yearlyPackage = packages.first;
+        }
+        if (_monthlyPackage == null && packages.length > 1) {
+          _monthlyPackage = packages[1];
+        } else if (_monthlyPackage == null && packages.isNotEmpty) {
+          _monthlyPackage = packages.first;
         }
       }
     } catch (e) {

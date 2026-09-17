@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; 
 import 'app_state.dart';
 import 'sign_in.dart'; 
+import 'onboarding.dart'; // Απαραίτητο για το Retake Onboarding
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -150,7 +151,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             
-            const SizedBox(height: 20), 
+            const SizedBox(height: 16),
+            
+            // ΝΕΟ: Κουμπί για επαναφορά στο Onboarding
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const OnboardingScreen())
+                  );
+                },
+                icon: const Icon(Icons.restart_alt, color: accentColor),
+                label: const Text('RETAKE ONBOARDING', style: TextStyle(color: accentColor, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: accentColor, width: 2),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 40), 
 
             SizedBox(
               width: double.infinity,
@@ -168,10 +191,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   }
                 },
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: accentColor, width: 2),
+                  side: const BorderSide(color: Colors.white54, width: 2),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text('SIGN OUT', style: TextStyle(color: accentColor, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                child: const Text('SIGN OUT', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               ),
             ),
           ],
