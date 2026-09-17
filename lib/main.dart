@@ -231,9 +231,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password: _passwordController.text.trim(),
       );
 
-      // ΝΕΟ: Αφού δεν υπάρχει πλέον email verification, 
-      // με το που πετύχει η εγγραφή, τον πετάμε καρφί στο Onboarding!
       if (mounted) {
+        // ΝΕΟ: Αποθηκεύει κατευθείαν ότι ο χρήστης θέλει να μείνει συνδεδεμένος
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('remember_me', true);
+
         Navigator.pushReplacement(
           context, 
           MaterialPageRoute(builder: (context) => const OnboardingScreen())

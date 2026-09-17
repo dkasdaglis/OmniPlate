@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://tools.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET"/>
 
@@ -6,6 +6,8 @@
         android:label="OmniPlate"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <!-- ΒΑΣΙΚΟ ACTIVITY ΤΗΣ ΕΦΑΡΜΟΓΗΣ -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -22,7 +24,7 @@
               android:resource="@style/NormalTheme"
               />
               
-            <!-- ΒΑΣΙΚΟ INTENT FILTER ΓΙΑ ΝΑ ΑΝΟΙΓΕΙ Η ΕΦΑΡΜΟΓΗ -->
+            <!-- INTENT FILTER ΓΙΑ ΝΑ ΑΝΟΙΓΕΙ Η ΕΦΑΡΜΟΓΗ -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -39,19 +41,20 @@
             </intent-filter>
         </activity>
         
-        <!-- ΝΕΟ: Κλειδώνει την κάμερα του Scanner κάθετα για να μην παραμορφώνει -->
+        <!-- ΚΛΕΙΔΩΜΑ ΚΑΜΕΡΑΣ SCANNER (ΜΕ TOOLS:REPLACE ΓΙΑ ΝΑ ΥΠΑΚΟΥΣΕΙ ΜΕ ΤΗ ΒΙΑ) -->
         <activity
             android:name="com.amolg.simplebarcodescanner.SimpleBarcodeScannerActivity"
             android:screenOrientation="portrait"
+            tools:replace="android:screenOrientation"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
         
-        <!-- Don't delete the meta-data below.
-             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <!-- META-DATA ΓΙΑ ΤΟ FLUTTER -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-    <!-- Required to query activities that can process text -->
+
+    <!-- QUERIES ΓΙΑ ΚΕΙΜΕΝΟ -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
