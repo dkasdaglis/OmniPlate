@@ -36,12 +36,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       floatingActionButton: _selectedIndex == 0 
           ? FloatingActionButton.extended(
               onPressed: () {
-                // ΕΛΕΓΧΟΣ REVENUECAT: Είναι PRO ο χρήστης;
                 if (context.read<AppState>().isPro) {
-                  // Ναι, είναι Pro -> Ανοίγει κανονικά η κάμερα
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const ScanMealScreen()));
                 } else {
-                  // Όχι, δεν είναι Pro -> Του πετάμε το Paywall!
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
@@ -87,11 +84,9 @@ class HomeContent extends StatelessWidget {
     const bgColor = Color(0xFF2B2D31);
     const cardColor = Color(0xFF1E1F22);
 
-    // ΥΠΟΛΟΓΙΣΜΟΣ ΔΥΝΑΜΙΚΩΝ MACROS ΓΙΑ ΤΟ DASHBOARD
     final weight = appState.weight;
     final dailyGoal = appState.dailyGoal;
     
-    // Στόχοι
     final targetProtein = (weight * 2.2).round();
     final targetFats = (weight * 1.0).round();
     final proteinKcal = targetProtein * 4;
@@ -99,7 +94,6 @@ class HomeContent extends StatelessWidget {
     final remainingKcalForCarbs = dailyGoal - proteinKcal - fatsKcal;
     final targetCarbs = remainingKcalForCarbs > 0 ? (remainingKcalForCarbs / 4).round() : 0;
 
-    // ΝΕΟ: Υπολογισμός Υπόλοιπου (Remaining) Μακροθρεπτικών
     final remProtein = (targetProtein - appState.consumedProtein).round();
     final remCarbs = (targetCarbs - appState.consumedCarbs).round();
     final remFats = (targetFats - appState.consumedFats).round();
@@ -156,7 +150,6 @@ class HomeContent extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ΜΠΑΙΝΟΥΝ ΟΙ ΔΥΝΑΜΙΚΕΣ ΜΕΤΑΒΛΗΤΕΣ ΠΛΕΟΝ (Remaining)
                       _macroIndicator('Protein', '${remProtein}g', const Color(0xFFED6058)), 
                       _macroIndicator('Carbs', '${remCarbs}g', const Color(0xFF4CAF50)), 
                       _macroIndicator('Fats', '${remFats}g', const Color(0xFFFFC107)), 
@@ -234,46 +227,76 @@ class HomeContent extends StatelessWidget {
               } else {
                 showModalBottomSheet(
                   context: context,
+                  isScrollControlled: true, 
                   backgroundColor: const Color(0xFF1E1F22),
                   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
                   builder: (context) {
-                    return SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-                            const Text('Meal Items', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 16),
-                            
-                            ...foods.asMap().entries.map((entry) {
-                              int index = entry.key;
-                              var food = entry.value;
-                              return ListTile(
-                                title: Text(food['name'], style: const TextStyle(color: Colors.white)),
-                                subtitle: Text('${food['portion']} • ${food['calories']} kcal', style: const TextStyle(color: Colors.white54)),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.white54),
-                                  onPressed: () {
-                                    Navigator.pop(context); 
-                                    context.read<AppState>().removeFoodFromMeal(mealId, index); 
+                    return Consumer<AppState>(
+                      builder: (context, appState, child) {
+                        List updatedFoods = appState.mealHistory[appState.dateKey]?[mealId] ?? [];
+                        
+                        return SafeArea(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              bottom: MediaQuery.of(context).viewPadding.bottom + 20.0, 
+                              top: 20.0, 
+                              left: 16.0, 
+                              right: 16.0
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                                const Text('Meal Items', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 16),
+                                
+                                ...updatedFoods.asMap().entries.map((entry) {
+                                  int index = entry.key;
+                                  var food = entry.value;
+                                  int qty = food['quantity'] ?? 1;
+
+                                  return ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: Text(food['name'], style: const TextStyle(color: Colors.white)),
+                                    subtitle: Text('${food['portion']} • ${food['calories']} kcal', style: const TextStyle(color: Colors.white54)),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.remove_circle_outline, color: Colors.white54),
+                                          onPressed: () => appState.updateFoodQuantity(mealId, index, qty - 1),
+                                        ),
+                                        Text('$qty', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                        IconButton(
+                                          icon: const Icon(Icons.add_circle_outline, color: Colors.white54),
+                                          onPressed: () => appState.updateFoodQuantity(mealId, index, qty + 1),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete, color: Color(0xFFED6058)),
+                                          onPressed: () {
+                                            appState.removeFoodFromMeal(mealId, index);
+                                            if (updatedFoods.length == 1) Navigator.pop(context); 
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                                const Divider(color: Colors.white12, height: 30),
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(Icons.add, color: Color(0xFF4CAF50)),
+                                  title: const Text('Add more food', style: TextStyle(color: Color(0xFF4CAF50), fontSize: 16, fontWeight: FontWeight.bold)),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => SearchFoodScreen(mealId: mealId)));
                                   },
                                 ),
-                              );
-                            }),
-                            const Divider(color: Colors.white12),
-                            ListTile(
-                              leading: const Icon(Icons.add, color: Color(0xFF4CAF50)),
-                              title: const Text('Add more food', style: TextStyle(color: Color(0xFF4CAF50), fontSize: 16, fontWeight: FontWeight.bold)),
-                              onTap: () {
-                                Navigator.pop(context);
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => SearchFoodScreen(mealId: mealId)));
-                              },
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      }
                     );
                   }
                 );
@@ -290,13 +313,9 @@ class HomeContent extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final targetDate = DateTime(date.year, date.month, date.day);
 
-    if (targetDate == today) {
-      return 'Today';
-    } else if (targetDate == today.subtract(const Duration(days: 1))) {
-      return 'Yesterday';
-    } else if (targetDate == today.add(const Duration(days: 1))) {
-      return 'Tomorrow';
-    }
+    if (targetDate == today) return 'Today';
+    if (targetDate == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    if (targetDate == today.add(const Duration(days: 1))) return 'Tomorrow';
     
     List<String> months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${date.day} ${months[date.month - 1]}';

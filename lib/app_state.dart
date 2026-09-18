@@ -22,21 +22,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Αρχικοποίηση RevenueCat με το επίσημο Google Play Public Key
-Future<void> initRevenueCat() async {
-  try {
-    await Purchases.setLogLevel(LogLevel.debug);
+  Future<void> initRevenueCat() async {
+    try {
+      await Purchases.setLogLevel(LogLevel.debug);
+      PurchasesConfiguration configuration = PurchasesConfiguration(dotenv.env['REVENUECAT_KEY']!);
+      await Purchases.configure(configuration);
 
-    // Τραβάει το κλειδί παραγωγής από το .env
-    PurchasesConfiguration configuration = PurchasesConfiguration(dotenv.env['REVENUECAT_KEY']!);
-    await Purchases.configure(configuration);
-
-      // Ακροατής για αλλαγές στο status του χρήστη σε πραγματικό χρόνο
       Purchases.addCustomerInfoUpdateListener((customerInfo) {
         _checkEntitlement(customerInfo);
       });
 
-      // Αρχικός έλεγχος κατά το άνοιγμα της εφαρμογής
       CustomerInfo customerInfo = await Purchases.getCustomerInfo();
       _checkEntitlement(customerInfo);
     } catch (e) {
@@ -45,7 +40,6 @@ Future<void> initRevenueCat() async {
   }
 
   void _checkEntitlement(CustomerInfo customerInfo) {
-    // Ελέγχουμε αν υπάρχει ενεργό entitlement (είτε με ID 'pro' είτε με 'omnipro')
     final isOmniProActive = customerInfo.entitlements.all["omnipro"]?.isActive ?? false;
     final isProActive = customerInfo.entitlements.all["pro"]?.isActive ?? false;
 
@@ -236,6 +230,7 @@ Future<void> initRevenueCat() async {
       'protein': protein, 
       'carbs': carbs,     
       'fats': fats,       
+      'quantity': 1, 
     };
     
     mealHistory[dateKey]![mealId].add(newFood);
@@ -283,6 +278,48 @@ Future<void> initRevenueCat() async {
           await Supabase.instance.client.from('meals').delete().eq('id', dbId);
         } catch (e) {
           debugPrint('Deleted offline. Cloud error: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> updateFoodQuantity(String mealId, int foodIndex, int newQuantity) async {
+    if (newQuantity <= 0) {
+      await removeFoodFromMeal(mealId, foodIndex);
+      return;
+    }
+
+    if (mealHistory.containsKey(dateKey) && mealHistory[dateKey]!.containsKey(mealId)) {
+      final foodList = mealHistory[dateKey]![mealId];
+      if (foodIndex < 0 || foodIndex >= foodList.length) return;
+
+      final foodItem = foodList[foodIndex];
+
+      foodItem['base_calories'] ??= foodItem['calories'];
+      foodItem['base_protein'] ??= foodItem['protein'];
+      foodItem['base_carbs'] ??= foodItem['carbs'];
+      foodItem['base_fats'] ??= foodItem['fats'];
+
+      foodItem['quantity'] = newQuantity;
+      foodItem['calories'] = (foodItem['base_calories'] as int) * newQuantity;
+      foodItem['protein'] = (foodItem['base_protein'] as double) * newQuantity;
+      foodItem['carbs'] = (foodItem['base_carbs'] as double) * newQuantity;
+      foodItem['fats'] = (foodItem['base_fats'] as double) * newQuantity;
+
+      _saveHistory();
+      notifyListeners(); 
+
+      final dbId = foodItem['db_id'];
+      if (dbId != null) {
+        try {
+          await Supabase.instance.client.from('meals').update({
+            'calories': foodItem['calories'],
+            'protein': foodItem['protein'],
+            'carbs': foodItem['carbs'],
+            'fats': foodItem['fats'],
+          }).eq('id', dbId);
+        } catch (e) {
+          debugPrint('Update offline. Cloud error: $e');
         }
       }
     }
