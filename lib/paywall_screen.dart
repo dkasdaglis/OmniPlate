@@ -16,7 +16,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
   Package? _monthlyPackage;
   Package? _yearlyPackage;
   
-  // ΝΕΟ: Αυτή η μεταβλητή ελέγχει 100% το UI, άσχετα με το RevenueCat!
   String _selectedPlan = 'annual'; 
 
   bool _isLoadingOfferings = true;
@@ -43,8 +42,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
           }
         }
         
-        // --- ΝΕΟ: ΑΛΕΞΙΣΦΑΙΡΟ FALLBACK ---
-        // Αν τα ονόματα δεν ταίριαζαν με τίποτα, παίρνουμε απλά τα πρώτα διαθέσιμα πακέτα!
         if (_yearlyPackage == null && packages.isNotEmpty) {
           _yearlyPackage = packages.first;
         }
@@ -66,7 +63,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
   }
 
   Future<void> _purchaseSelected() async {
-    // Βρίσκουμε ποιο πακέτο αντιστοιχεί στην επιλογή του UI
     Package? packageToBuy = _selectedPlan == 'annual' ? _yearlyPackage : _monthlyPackage;
 
     if (packageToBuy == null) {
@@ -81,7 +77,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
     });
 
     try {
-      final dynamic res = await (Purchases as dynamic).purchasePackage(packageToBuy);
+      // Καλούμε απευθείας το Purchases.purchasePackage
+      final dynamic res = await Purchases.purchasePackage(packageToBuy);
       final CustomerInfo customerInfo = (res is CustomerInfo) ? res : res.customerInfo;
 
       final bool isPro = customerInfo.entitlements.all["omnipro"]?.isActive ?? 
@@ -94,7 +91,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const SuccessProScreen()));
       }
     } on PlatformException catch (e) {
-      if (e.code != '1' && mounted) {
+      var errorCode = PurchasesErrorHelper.getErrorCode(e);
+      if (errorCode != PurchasesErrorCode.purchaseCancelledError && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Purchase failed: ${e.message ?? e.code}'), backgroundColor: Colors.redAccent),
         );
@@ -156,8 +154,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
     const cardColor = Color(0xFF1E1F22);
     const accentColor = Color(0xFFED6058);
 
-    final yearlyPrice = _yearlyPackage?.storeProduct.priceString ?? '€45.00';
-    final monthlyPrice = _monthlyPackage?.storeProduct.priceString ?? '€5.00';
+    final yearlyPrice = _yearlyPackage?.storeProduct.priceString ?? '€54.99';
+    final monthlyPrice = _monthlyPackage?.storeProduct.priceString ?? '€5.99';
 
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -205,7 +203,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedPlan = 'annual'; // Αλλάζει αμέσως χωρίς if!
+                        _selectedPlan = 'annual';
                       });
                     },
                     child: Container(
@@ -256,7 +254,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedPlan = 'monthly'; // Αλλάζει αμέσως χωρίς if!
+                        _selectedPlan = 'monthly';
                       });
                     },
                     child: Container(
@@ -320,7 +318,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
   }
 }
 
-// Η οθόνη επιτυχίας παραμένει ίδια, ακριβώς κάτω από το PaywallScreen
 class SuccessProScreen extends StatefulWidget {
   const SuccessProScreen({super.key});
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:simple_barcode_scanner/simple_barcode_scanner.dart'; // ΝΕΟ IMPORT: Το πακέτο του Barcode!
+import 'package:simple_barcode_scanner/simple_barcode_scanner.dart';
 import 'app_state.dart';
 import 'api_service.dart'; 
 import 'food_model.dart';  
@@ -20,8 +20,9 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
   List<FoodItem> _searchResults = [];
   bool _isLoading = false;
 
+  // 1. ΑΝΑΖΗΤΗΣΗ ΜΕ ΚΕΙΜΕΝΟ (Μπάρα & Βελάκι -> USDA)
   void _performSearch(String query) async {
-    if (query.trim().length < 3) return;
+    if (query.trim().length < 2) return;
 
     FocusScope.of(context).unfocus();
 
@@ -31,6 +32,27 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     });
 
     final results = await ApiService.searchFoods(query);
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _searchResults = results;
+      });
+    }
+  }
+
+  // 2. ΑΝΑΖΗΤΗΣΗ ΜΕ BARCODE (Κάμερα -> OpenFoodFacts)
+  void _performBarcodeSearch(String barcode) async {
+    if (barcode.trim().isEmpty) return;
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isLoading = true;
+      _searchQuery = barcode;
+    });
+
+    final results = await ApiService.searchByBarcode(barcode);
 
     if (mounted) {
       setState(() {
@@ -73,26 +95,25 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
               onSubmitted: _performSearch, 
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: 'Search foods or scan...',
+                hintText: 'Search foods (e.g. potato, chicken) or scan...',
                 hintStyle: const TextStyle(color: Colors.white54),
-                // ΝΕΟ: Το εικονίδιο της κάμερας!
+                // Κουμπί Barcode -> Χτυπάει OpenFoodFacts
                 prefixIcon: IconButton(
                   icon: const Icon(Icons.qr_code_scanner, color: accentColor),
                   onPressed: () async {
-                    // 1. Ανοίγει η οθόνη του Scanner
                     var res = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const SimpleBarcodeScannerPage(),
                       ),
                     );
-                    // 2. Αν βρήκε barcode και δεν πατήσαμε ακύρωση (-1)
                     if (res is String && res != '-1' && res.isNotEmpty) {
-                      _controller.text = res; // Βάζει το νούμερο στο πεδίο
-                      _performSearch(res);    // Ρωτάει αυτόματα τον server!
+                      _controller.text = res;
+                      _performBarcodeSearch(res); // Ψάχνει αποκλειστικά στο OpenFoodFacts!
                     }
                   },
                 ),
+                // Κουμπί Βελάκι (Send) -> Χτυπάει USDA
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.send, color: accentColor),
                   onPressed: () => _performSearch(_controller.text),
